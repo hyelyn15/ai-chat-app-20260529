@@ -1,0 +1,2 @@
+https://my-mcp-server-weld.vercel.app/api/mcp
+
