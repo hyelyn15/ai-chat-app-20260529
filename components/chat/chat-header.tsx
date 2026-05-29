@@ -1,5 +1,8 @@
-import { RotateCcw, Server } from "lucide-react";
+"use client";
+
+import { LogOut, RotateCcw, Server } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 
@@ -10,6 +13,14 @@ type ChatHeaderProps = {
 };
 
 export function ChatHeader({ model, roomName, onClearRoom }: ChatHeaderProps) {
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    router.replace("/login");
+    router.refresh();
+  }
+
   return (
     <header className="flex shrink-0 items-center justify-between border-b px-4 py-3">
       <div>
@@ -35,6 +46,15 @@ export function ChatHeader({ model, roomName, onClearRoom }: ChatHeaderProps) {
         >
           <Server className="size-4" />
           MCP Inspector
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => void handleLogout()}
+          aria-label="로그아웃"
+          title="로그아웃"
+        >
+          <LogOut className="size-4" />
         </Button>
       </div>
     </header>

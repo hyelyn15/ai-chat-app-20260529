@@ -3,6 +3,7 @@ import "server-only";
 import type { FunctionDeclaration } from "@google/genai";
 
 import { parseMcpToolResult, type ParsedToolResult } from "@/lib/mcp/tool-result";
+import { validateMcpConnectConfig } from "@/lib/mcp/url-policy";
 import { connectSession, getClient } from "@/lib/mcp/server/client-manager";
 import type { McpConnectConfig, McpJsonSchema } from "@/types/mcp";
 
@@ -25,6 +26,7 @@ export async function prepareMcpTools(
   for (const config of configs) {
     let sessionId: string;
     try {
+      validateMcpConnectConfig(config);
       sessionId = await connectSession(config);
     } catch {
       continue;

@@ -1,5 +1,19 @@
 import { readEnvLocal } from "@/lib/env-reader";
 
+function assertServiceRoleKey(key: string): string {
+  const normalized = key.trim();
+  if (
+    normalized.startsWith("sb_publishable_") ||
+    normalized.includes("anon")
+  ) {
+    throw new Error("INVALID_SUPABASE_SERVICE_ROLE_KEY");
+  }
+  if (!normalized.startsWith("eyJ")) {
+    throw new Error("INVALID_SUPABASE_SERVICE_ROLE_KEY");
+  }
+  return normalized;
+}
+
 export function getSupabaseUrl(): string {
   const fromFile = readEnvLocal("NEXT_PUBLIC_SUPABASE_URL");
   const fromEnv = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -17,5 +31,5 @@ export function getSupabaseServiceRoleKey(): string {
   if (!key) {
     throw new Error("MISSING_SUPABASE_SERVICE_ROLE_KEY");
   }
-  return key;
+  return assertServiceRoleKey(key);
 }

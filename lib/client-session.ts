@@ -1,12 +1,9 @@
 "use client";
 
-import {
-  clearLegacyStorage,
-  getStoredClientId,
-  setStoredClientId,
-} from "@/lib/client-id";
+import { clearLegacyStorage } from "@/lib/client-id";
 import {
   bootstrapClient,
+  fetchClientSession,
   migrateLegacyToExistingClient,
   readLegacyStorage,
 } from "@/lib/data-api";
@@ -25,22 +22,19 @@ export function getClientSession(): Promise<string> {
 
 async function initClientSession(): Promise<string> {
   const legacy = readLegacyStorage();
-  let clientId = getStoredClientId();
 
-  if (!clientId) {
+  try {
+    const session = await fetchClientSession();
+    if (legacy.chat || legacy.mcp?.length) {
+      await migrateLegacyToExistingClient(legacy);
+      clearLegacyStorage();
+    }
+    return session.clientId;
+  } catch {
     const boot = await bootstrapClient(legacy);
-    clientId = boot.clientId;
-    setStoredClientId(clientId);
     clearLegacyStorage();
-    return clientId;
+    return boot.clientId;
   }
-
-  if (legacy.chat || legacy.mcp?.length) {
-    await migrateLegacyToExistingClient(clientId, legacy);
-    clearLegacyStorage();
-  }
-
-  return clientId;
 }
 
 export function resetClientSessionForTests(): void {

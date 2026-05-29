@@ -31,6 +31,7 @@ export async function streamChat(
   const response = await fetch("/api/chat/stream", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ messages, mcpServers }),
     signal,
   });

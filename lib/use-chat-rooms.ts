@@ -23,14 +23,13 @@ export function useChatRooms() {
 
   useEffect(() => {
     if (!isReady || !clientId || bootstrappedRef.current) return;
-    const sessionClientId = clientId;
 
     let cancelled = false;
     bootstrappedRef.current = true;
 
     async function load() {
       try {
-        const next = await fetchChatState(sessionClientId);
+        const next = await fetchChatState();
         if (cancelled) return;
         setState(next);
         setIsHydrated(true);
@@ -57,7 +56,7 @@ export function useChatRooms() {
     () => {
       if (!clientId || !isHydrated) return;
       setSaveError(null);
-      return saveChatState(clientId, state).catch((saveErr) => {
+      return saveChatState(state).catch((saveErr) => {
         setSaveError(
           saveErr instanceof Error
             ? saveErr.message

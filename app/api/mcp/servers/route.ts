@@ -1,6 +1,5 @@
 import { mapErrorToChatError } from "@/lib/llm/errors";
-import { CLIENT_ID_HEADER } from "@/lib/client-id";
-import { clientExists } from "@/lib/supabase/chat-repository";
+import { requireClientId } from "@/lib/auth/require-client-id";
 import {
   loadMcpServers,
   saveMcpServers,
@@ -27,22 +26,25 @@ function mapStorageError(error: unknown) {
         { status: 500 },
       );
     }
+    if (error.message === "INVALID_SUPABASE_SERVICE_ROLE_KEY") {
+      return Response.json(
+        {
+          error:
+            "SUPABASE_SERVICE_ROLE_KEY 형식이 올바르지 않습니다. service_role JWT(eyJ...)를 사용해 주세요.",
+        },
+        { status: 500 },
+      );
+    }
   }
   const chatError = mapErrorToChatError(error);
   return Response.json({ error: chatError.message }, { status: 500 });
 }
 
-export async function GET(request: Request) {
-  const clientId = request.headers.get(CLIENT_ID_HEADER);
-  if (!clientId) {
-    return Response.json({ error: "Client ID가 필요합니다." }, { status: 400 });
-  }
+export async function GET() {
+  const clientId = await requireClientId();
+  if (clientId instanceof Response) return clientId;
 
   try {
-    if (!(await clientExists(clientId))) {
-      return Response.json({ error: "Client를 찾을 수 없습니다." }, { status: 404 });
-    }
-
     const state = await loadMcpServers(clientId);
     return Response.json(state ?? { servers: [], activeServerId: null });
   } catch (error) {
@@ -51,10 +53,8 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const clientId = request.headers.get(CLIENT_ID_HEADER);
-  if (!clientId) {
-    return Response.json({ error: "Client ID가 필요합니다." }, { status: 400 });
-  }
+  const clientId = await requireClientId();
+  if (clientId instanceof Response) return clientId;
 
   let body: McpServersState;
   try {
@@ -68,10 +68,6 @@ export async function PUT(request: Request) {
   }
 
   try {
-    if (!(await clientExists(clientId))) {
-      return Response.json({ error: "Client를 찾을 수 없습니다." }, { status: 404 });
-    }
-
     await saveMcpServers(clientId, body);
     return Response.json({ ok: true });
   } catch (error) {

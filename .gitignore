@@ -34,9 +34,14 @@ yarn-error.log*
 .env*
 !.env.example
 
+# cursor local config (may contain project refs)
+.cursor/
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel

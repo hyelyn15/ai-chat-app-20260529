@@ -1,5 +1,6 @@
 import "server-only";
 
+import { decryptSecret, encryptSecret } from "@/lib/crypto/secrets";
 import { toIsoString } from "@/lib/supabase/chat-mapper";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { McpServer, McpServerStatus } from "@/types/mcp";
@@ -31,7 +32,7 @@ function rowToServer(row: {
     args: row.args ?? undefined,
     url: row.url ?? undefined,
     headers: row.headers ?? undefined,
-    hfToken: row.hf_token ?? undefined,
+    hfToken: decryptSecret(row.hf_token) ?? undefined,
     status: row.status as McpServerStatus,
     createdAt: new Date(row.created_at),
   };
@@ -88,7 +89,7 @@ export async function saveMcpServers(
         args: server.args ?? null,
         url: server.url ?? null,
         headers: server.headers ?? null,
-        hf_token: server.hfToken ?? null,
+        hf_token: server.hfToken ? encryptSecret(server.hfToken) : null,
         status: server.status,
         created_at: toIsoString(server.createdAt),
         sort_order: index,

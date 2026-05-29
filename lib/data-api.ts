@@ -1,5 +1,4 @@
 import {
-  CLIENT_ID_HEADER,
   LEGACY_CHAT_STORAGE_KEY,
   LEGACY_MCP_STORAGE_KEY,
 } from "@/lib/client-id";
@@ -13,6 +12,8 @@ export type LegacyStorageSnapshot = {
   chat: LegacyChatPayload | null;
   mcp: SerializedMcpServer[] | null;
 };
+
+const fetchOptions: RequestInit = { credentials: "include" };
 
 export function readLegacyStorage(): LegacyStorageSnapshot {
   if (typeof window === "undefined") {
@@ -53,10 +54,17 @@ async function parseError(response: Response): Promise<never> {
   throw new Error(data?.error ?? `요청에 실패했습니다. (${response.status})`);
 }
 
+export async function fetchClientSession(): Promise<BootstrapResponse> {
+  const response = await fetch("/api/client", fetchOptions);
+  if (!response.ok) await parseError(response);
+  return normalizeBootstrapResponse(await response.json());
+}
+
 export async function bootstrapClient(
   legacy: LegacyStorageSnapshot,
 ): Promise<BootstrapResponse> {
   const response = await fetch("/api/client", {
+    ...fetchOptions,
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -66,49 +74,43 @@ export async function bootstrapClient(
   });
 
   if (!response.ok) await parseError(response);
-  return response.json() as Promise<BootstrapResponse>;
+  return normalizeBootstrapResponse(await response.json());
 }
 
-export async function fetchChatState(clientId: string): Promise<ChatState> {
-  const response = await fetch("/api/chat", {
-    headers: { [CLIENT_ID_HEADER]: clientId },
+export async function migrateLegacyToExistingClient(
+  legacy: LegacyStorageSnapshot,
+): Promise<void> {
+  const response = await fetch("/api/client/migrate", {
+    ...fetchOptions,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      legacyChat: legacy.chat,
+      legacyMcp: legacy.mcp,
+    }),
   });
   if (!response.ok) await parseError(response);
-  const data = (await response.json()) as ChatState;
-  return {
-    ...data,
-    rooms: data.rooms.map((room) => ({
-      ...room,
-      createdAt: new Date(room.createdAt),
-      messages: room.messages.map((message) => ({
-        ...message,
-        createdAt: new Date(message.createdAt),
-      })),
-    })),
-  };
 }
 
-export async function saveChatState(
-  clientId: string,
-  state: ChatState,
-): Promise<void> {
+export async function fetchChatState(): Promise<ChatState> {
+  const response = await fetch("/api/chat", fetchOptions);
+  if (!response.ok) await parseError(response);
+  const data = (await response.json()) as ChatState;
+  return normalizeChatState(data);
+}
+
+export async function saveChatState(state: ChatState): Promise<void> {
   const response = await fetch("/api/chat", {
+    ...fetchOptions,
     method: "PUT",
-    headers: {
-      [CLIENT_ID_HEADER]: clientId,
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(state),
   });
   if (!response.ok) await parseError(response);
 }
 
-export async function fetchMcpServersState(
-  clientId: string,
-): Promise<McpServersState> {
-  const response = await fetch("/api/mcp/servers", {
-    headers: { [CLIENT_ID_HEADER]: clientId },
-  });
+export async function fetchMcpServersState(): Promise<McpServersState> {
+  const response = await fetch("/api/mcp/servers", fetchOptions);
   if (!response.ok) await parseError(response);
   const data = (await response.json()) as McpServersState;
   return {
@@ -120,52 +122,40 @@ export async function fetchMcpServersState(
   };
 }
 
-export async function saveMcpServersState(
-  clientId: string,
-  state: McpServersState,
-): Promise<void> {
+export async function saveMcpServersState(state: McpServersState): Promise<void> {
   const response = await fetch("/api/mcp/servers", {
+    ...fetchOptions,
     method: "PUT",
-    headers: {
-      [CLIENT_ID_HEADER]: clientId,
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(state),
   });
   if (!response.ok) await parseError(response);
 }
 
-export async function migrateLegacyToExistingClient(
-  clientId: string,
-  legacy: LegacyStorageSnapshot,
-): Promise<void> {
-  if (legacy.chat) {
-    await saveChatState(clientId, {
-      activeRoomId: legacy.chat.activeRoomId,
-      rooms: legacy.chat.rooms.map((room) => ({
-        id: room.id,
-        name: room.name,
-        createdAt: new Date(room.createdAt),
-        messages: room.messages.map((message) => ({
-          id: message.id,
-          role: message.role,
-          content: message.content,
-          images: message.images,
-          createdAt: new Date(message.createdAt),
-        })),
-      })),
-    });
-  }
-
-  if (legacy.mcp?.length) {
-    await saveMcpServersState(clientId, {
-      servers: legacy.mcp.map((server) => ({
+function normalizeBootstrapResponse(data: BootstrapResponse): BootstrapResponse {
+  return {
+    ...data,
+    chat: normalizeChatState(data.chat),
+    mcp: {
+      ...data.mcp,
+      servers: data.mcp.servers.map((server) => ({
         ...server,
-        status:
-          server.status === "connected" ? "connected" : "disconnected",
         createdAt: new Date(server.createdAt),
       })),
-      activeServerId: legacy.mcp[0]?.id ?? null,
-    });
-  }
+    },
+  };
+}
+
+function normalizeChatState(data: ChatState): ChatState {
+  return {
+    ...data,
+    rooms: data.rooms.map((room) => ({
+      ...room,
+      createdAt: new Date(room.createdAt),
+      messages: room.messages.map((message) => ({
+        ...message,
+        createdAt: new Date(message.createdAt),
+      })),
+    })),
+  };
 }

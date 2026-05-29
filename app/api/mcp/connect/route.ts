@@ -2,6 +2,7 @@ import { connectSession, disconnectSession } from "@/lib/mcp/server/client-manag
 import { mapMcpError } from "@/lib/mcp/server/errors";
 import { listCapabilities } from "@/lib/mcp/server/operations";
 import { getClient } from "@/lib/mcp/server/client-manager";
+import { validateMcpConnectConfig } from "@/lib/mcp/url-policy";
 import type { McpConnectConfig } from "@/types/mcp";
 
 export const runtime = "nodejs";
@@ -17,6 +18,7 @@ export async function POST(request: Request) {
 
   let sessionId: string | undefined;
   try {
+    validateMcpConnectConfig(config);
     sessionId = await connectSession(config);
     const capabilities = await listCapabilities(getClient(sessionId));
     return Response.json({ sessionId, capabilities });

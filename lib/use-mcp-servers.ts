@@ -38,14 +38,13 @@ export function useMcpServers() {
 
   useEffect(() => {
     if (!isReady || !clientId || bootstrappedRef.current) return;
-    const sessionClientId = clientId;
 
     let cancelled = false;
     bootstrappedRef.current = true;
 
     async function load() {
       try {
-        const next = await fetchMcpServersState(sessionClientId);
+        const next = await fetchMcpServersState();
         if (cancelled) return;
         setState(next);
         setIsHydrated(true);
@@ -72,7 +71,7 @@ export function useMcpServers() {
     () => {
       if (!clientId || !isHydrated) return;
       setSaveError(null);
-      return saveMcpServersState(clientId, state).catch((saveErr) => {
+      return saveMcpServersState(state).catch((saveErr) => {
         setSaveError(
           saveErr instanceof Error
             ? saveErr.message
